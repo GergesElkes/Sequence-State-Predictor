@@ -229,7 +229,7 @@ python main.py --csv your_data.csv
 Add screenshots here:
 
 ```
-![Main UI](screenshot.png)
+![Main UI](Capture3.PNG)
 ```
 
 ---
