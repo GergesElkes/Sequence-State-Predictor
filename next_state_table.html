@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next State Probabilities by Tick Speed</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080b0f;
+  --s1: #0e1219;
+  --s2: #131a24;
+  --border: #1c2535;
+  --b2: #232f42;
+  --text: #dce4f2;
+  --muted: #3d5068;
+  --m2: #6a7f96;
+  --accent: #38bdf8;
+  --green: #20d472;
+  --red: #f04060;
+  --yellow: #f5c430;
+  --purple: #9b70f5;
+  --orange: #f07840;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+.hdr {
+  padding: 40px 44px 28px;
+  border-bottom: 1px solid var(--border);
+}
+.eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+h1 { font-size: 30px; font-weight: 800; letter-spacing: -1.5px; }
+.sub { font-size: 13px; color: var(--m2); margin-top: 6px; }
+
+/* Speed selector */
+.controls {
+  padding: 20px 44px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.speed-btns { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.spd-btn {
+  padding: 9px 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.18s;
+  border-right: 1px solid var(--border);
+}
+.spd-btn:last-child { border-right: none; }
+.spd-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.spd-btn.active-early { background: rgba(34,212,114,0.1); color: var(--green); }
+.spd-btn.active-clock { background: rgba(56,189,248,0.1); color: var(--accent); }
+.spd-btn.active-late  { background: rgba(240,120,64,0.1); color: var(--orange); }
+
+.legend { display: flex; gap: 20px; flex-wrap: wrap; }
+.leg-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--m2); }
+.leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+.from-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+select#from-state {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Main table */
+.table-wrap {
+  padding: 28px 44px;
+  overflow-x: auto;
+}
+
+table.main {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.main thead tr th {
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  font-weight: 400;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 2;
+}
+.main thead tr th.from-col {
+  text-align: left;
+  padding-left: 14px;
+  min-width: 180px;
+}
+.main thead tr th.total-col {
+  color: var(--muted);
+  min-width: 64px;
+}
+
+.main tbody tr {
+  transition: background 0.15s;
+}
+.main tbody tr:hover { background: rgba(255,255,255,0.02); }
+.main tbody tr.highlighted { background: rgba(56,189,248,0.04); }
+
+.main tbody td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  height: 48px;
+}
+.main tbody td.from-cell {
+  padding: 10px 14px;
+  border-right: 2px solid var(--border);
+  min-width: 180px;
+}
+.main tbody td.total-cell {
+  padding: 10px 8px;
+  text-align: center;
+  color: var(--muted);
+  border-left: 2px solid var(--border);
+  font-size: 10px;
+}
+
+.from-id { font-size: 16px; font-weight: 700; }
+.from-name { font-size: 9px; letter-spacing: 1px; color: var(--m2); margin-top: 1px; }
+
+/* Probability cell */
+.prob-cell {
+  text-align: center;
+  position: relative;
+  min-width: 58px;
+}
+.prob-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 4px 2px;
+  position: relative;
+  transition: transform 0.15s;
+}
+.prob-inner:hover { transform: scale(1.12); z-index: 5; }
+.prob-bg {
+  position: absolute;
+  inset: 4px 3px;
+  border-radius: 5px;
+  transition: opacity 0.3s;
+}
+.prob-val {
+  position: relative;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.prob-bar {
+  position: relative;
+  width: 32px;
+  height: 3px;
+  background: var(--b2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.prob-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+.prob-zero {
+  color: var(--border);
+  font-size: 12px;
+}
+
+/* column headers */
+.col-header-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.col-id { font-size: 12px; font-weight: 700; }
+.col-name { font-size: 8px; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; max-width: 58px; overflow: hidden; text-overflow: ellipsis; }
+
+/* diff mode */
+.diff-pos { color: var(--green); }
+.diff-neg { color: var(--red); }
+.diff-zero { color: var(--muted); }
+
+.mode-btns { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.mode-btn {
+  padding: 9px 16px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.mode-btn:last-child { border-right: none; }
+.mode-btn:hover { color: var(--text); }
+.mode-btn.active { background: rgba(56,189,248,0.1); color: var(--accent); }
+
+.note {
+  margin: 0 44px 28px;
+  padding: 14px 18px;
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--m2);
+  line-height: 1.7;
+  border-left: 3px solid var(--accent);
+}
+
+.state-colors {
+  0: '#3d5068', 1: '#38bdf8', 2: '#20d472', 3: '#f5c430', 4: '#f07840',
+  5: '#9b70f5', 6: '#f04060', 7: '#20d472', 8: '#20d472', 9: '#f07840',
+  10: '#9b70f5', 11: '#f04060', 12: '#f5c430'
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="eyebrow">XAUUSD OTC · 400K Ticks · Markov Chain</div>
+  <h1>Next-State Probability Table</h1>
+  <div class="sub">Conditional on current state + tick arrival speed — <span id="speed-desc" style="color:var(--green)">Early ticks (&lt;0.480s)</span></div>
+</div>
+
+<div class="controls">
+  <div>
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Tick Speed</div>
+    <div class="speed-btns">
+      <button class="spd-btn active-early" onclick="setSpeed('early',this)">⚡ Early &lt;0.48s</button>
+      <button class="spd-btn" onclick="setSpeed('clock',this)">⏱ Clock 0.48–0.52s</button>
+      <button class="spd-btn" onclick="setSpeed('late',this)">🐢 Late &gt;0.52s</button>
+    </div>
+  </div>
+  <div>
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Display Mode</div>
+    <div class="mode-btns">
+      <button class="mode-btn active" onclick="setMode('prob',this)">Probability</button>
+      <button class="mode-btn" onclick="setMode('diff',this)">Δ vs Clock</button>
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="table-wrap">
+  <table class="main" id="main-table"></table>
+</div>
+
+<div class="note" id="bottom-note"></div>
+
+<script>
+const DATA = {"early":{"0":{"total":8319,"probs":{"0":17.39,"1":40.97,"9":41.64}},"1":{"total":7651,"probs":{"2":44.24,"3":10.55,"5":23.24,"8":11.48,"11":10.5}},"2":{"total":785,"probs":{"2":32.87,"3":8.66,"5":16.94,"8":33.5,"11":8.03}},"3":{"total":219,"probs":{"4":32.42,"6":32.88,"7":12.33,"10":20.09,"12":2.28}},"4":{"total":27253,"probs":{"0":19.1,"1":40.57,"9":40.33}},"5":{"total":350,"probs":{"4":34.86,"6":30.0,"7":8.86,"10":23.14,"12":3.14}},"6":{"total":726,"probs":{"4":34.85,"6":32.09,"7":7.16,"10":19.56,"12":6.34}},"7":{"total":172,"probs":{"2":25.58,"3":20.35,"5":5.23,"8":43.6,"11":5.23}},"8":{"total":27118,"probs":{"0":19.4,"1":40.85,"9":39.75}},"9":{"total":7590,"probs":{"4":11.33,"6":43.93,"7":10.82,"10":22.98,"12":10.95}},"10":{"total":376,"probs":{"2":34.57,"3":2.13,"5":16.49,"8":34.84,"11":11.97}},"11":{"total":186,"probs":{"4":36.56,"6":31.72,"7":2.15,"10":4.3,"12":25.27}},"12":{"total":224,"probs":{"2":29.46,"3":3.57,"5":22.77,"8":35.27,"11":8.93}}},"clock":{"0":{"total":5618,"probs":{"0":24.1,"1":37.99,"9":37.91}},"1":{"total":16925,"probs":{"2":36.57,"3":11.01,"5":17.57,"8":26.68,"11":8.18}},"2":{"total":49338,"probs":{"2":33.34,"3":8.1,"5":16.89,"8":33.72,"11":7.96}},"3":{"total":14758,"probs":{"4":29.96,"6":35.48,"7":9.95,"10":21.46,"12":3.15}},"4":{"total":14666,"probs":{"0":31.92,"1":34.08,"9":34.0}},"5":{"total":23742,"probs":{"4":35.49,"6":32.26,"7":8.88,"10":20.84,"12":2.52}},"6":{"total":49669,"probs":{"4":33.25,"6":33.32,"7":7.9,"10":17.28,"12":8.24}},"7":{"total":11068,"probs":{"2":32.13,"3":26.28,"5":3.53,"8":35.65,"11":2.4}},"8":{"total":14909,"probs":{"0":31.07,"1":34.16,"9":34.77}},"9":{"total":16978,"probs":{"4":26.76,"6":36.34,"7":8.29,"10":17.46,"12":11.15}},"10":{"total":23803,"probs":{"2":32.12,"3":2.52,"5":20.17,"8":35.6,"11":9.59}},"11":{"total":11178,"probs":{"4":35.72,"6":32.81,"7":2.77,"10":3.2,"12":25.5}},"12":{"total":14690,"probs":{"2":34.87,"3":3.22,"5":22.57,"8":29.59,"11":9.75}}},"late":{"0":{"total":10113,"probs":{"0":12.42,"1":44.03,"9":43.55}},"1":{"total":17898,"probs":{"2":42.99,"3":24.41,"5":13.36,"8":12.45,"11":6.78}},"2":{"total":1338,"probs":{"2":34.3,"3":8.22,"5":17.12,"8":31.09,"11":9.27}},"3":{"total":385,"probs":{"4":29.09,"6":30.91,"7":10.39,"10":25.97,"12":3.64}},"4":{"total":358,"probs":{"0":28.77,"1":35.2,"9":36.03}},"5":{"total":620,"probs":{"4":32.1,"6":32.58,"7":10.81,"10":22.9,"12":1.61}},"6":{"total":1292,"probs":{"4":29.49,"6":36.22,"7":7.28,"10":18.58,"12":8.44}},"7":{"total":315,"probs":{"2":31.75,"3":25.08,"5":3.49,"8":36.19,"11":3.49}},"8":{"total":372,"probs":{"0":29.57,"1":35.75,"9":34.68}},"9":{"total":17628,"probs":{"4":12.56,"6":43.62,"7":6.77,"10":13.06,"12":23.99}},"10":{"total":655,"probs":{"2":35.73,"3":2.29,"5":20.76,"8":30.53,"11":10.69}},"11":{"total":315,"probs":{"4":30.48,"6":37.14,"7":2.86,"10":2.22,"12":27.3}},"12":{"total":376,"probs":{"2":34.84,"3":5.05,"5":26.6,"8":25.0,"11":8.51}}}};
+
+const STATE_NAMES = {0:"FLATLINE",1:"BULL BREAK",2:"BULL TREND",3:"BULL PULL",4:"BEAR PAUSE",5:"BULL TRAP",6:"BEAR TREND",7:"BULL REV",8:"BULL PAUSE",9:"BEAR BREAK",10:"EXACT REC",11:"BEAR REV",12:"BEAR PULL"};
+const STATE_COLORS = {0:'#3d5068',1:'#38bdf8',2:'#20d472',3:'#f5c430',4:'#f07840',5:'#9b70f5',6:'#f04060',7:'#20d472',8:'#20d472',9:'#f07840',10:'#9b70f5',11:'#f04060',12:'#f5c430'};
+const BULL = new Set([1,2,3,7,8]);
+const BEAR = new Set([4,6,9,11,12]);
+
+let currentSpeed = 'early';
+let currentMode = 'prob';
+
+function dirColor(id) {
+  if (BULL.has(id)) return 'var(--green)';
+  if (BEAR.has(id)) return 'var(--red)';
+  return 'var(--muted)';
+}
+
+function heatColor(p, sid) {
+  // returns rgba background color
+  const c = STATE_COLORS[sid];
+  const hex = c.replace('#','');
+  const r = parseInt(hex.slice(0,2),16);
+  const g = parseInt(hex.slice(2,4),16);
+  const b = parseInt(hex.slice(4,6),16);
+  const alpha = Math.min(0.55, (p/100) * 1.1);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function buildLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = '';
+  const items = [
+    {color:'var(--green)',label:'Bull state'},
+    {color:'var(--red)',label:'Bear state'},
+    {color:'var(--muted)',label:'Neutral state'},
+    {color:'rgba(56,189,248,0.5)',label:'High probability'},
+  ];
+  items.forEach(item => {
+    el.innerHTML += `<div class="leg-item"><div class="leg-dot" style="background:${item.color}"></div>${item.label}</div>`;
+  });
+}
+
+function buildTable() {
+  const table = document.getElementById('main-table');
+  const speedData = DATA[currentSpeed];
+  const clockData = DATA['clock'];
+  const ids = [...Array(13).keys()];
+
+  // Find max prob for scaling
+  let maxP = 0;
+  ids.forEach(from => {
+    const probs = speedData[from]?.probs || {};
+    Object.values(probs).forEach(p => { if (p > maxP) maxP = p; });
+  });
+
+  // THEAD
+  let thead = `<thead><tr>
+    <th class="from-col">FROM STATE</th>`;
+  ids.forEach(id => {
+    thead += `<th>
+      <div class="col-header-wrap">
+        <span class="col-id" style="color:${STATE_COLORS[id]}">${id}</span>
+        <span class="col-name">${STATE_NAMES[id]}</span>
+      </div>
+    </th>`;
+  });
+  thead += `<th class="total-col">N</th></tr></thead>`;
+
+  // TBODY
+  let tbody = '<tbody>';
+  ids.forEach(from => {
+    const row = speedData[from] || {total:0, probs:{}};
+    const clockRow = clockData[from] || {total:0, probs:{}};
+    const total = row.total;
+    const hasData = total > 0;
+
+    tbody += `<tr>
+      <td class="from-cell">
+        <div class="from-id" style="color:${STATE_COLORS[from]}">${from}</div>
+        <div class="from-name">${STATE_NAMES[from]}</div>
+      </td>`;
+
+    ids.forEach(to => {
+      const p = row.probs[to] || 0;
+      const clockP = clockRow.probs[to] || 0;
+      const diff = p - clockP;
+
+      if (!hasData || p === 0) {
+        tbody += `<td class="prob-cell"><div class="prob-inner"><span class="prob-zero">—</span></div></td>`;
+        return;
+      }
+
+      if (currentMode === 'prob') {
+        const bgColor = heatColor(p, to);
+        const textColor = STATE_COLORS[to];
+        tbody += `<td class="prob-cell">
+          <div class="prob-inner" title="State ${from} → ${to}: ${p.toFixed(1)}% (n≈${Math.round(total*(p/100))})">
+            <div class="prob-bg" style="background:${bgColor}"></div>
+            <span class="prob-val" style="color:${textColor}">${p.toFixed(1)}%</span>
+            <div class="prob-bar"><div class="prob-bar-fill" style="width:${p/maxP*100}%;background:${textColor}88"></div></div>
+          </div>
+        </td>`;
+      } else {
+        // diff mode
+        const sign = diff > 0 ? '+' : '';
+        const cls = diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
+        const absDiff = Math.abs(diff);
+        const bgAlpha = Math.min(0.25, absDiff / 25);
+        const bgCol = diff > 1 ? `rgba(32,212,114,${bgAlpha})` : diff < -1 ? `rgba(240,64,96,${bgAlpha})` : 'transparent';
+        tbody += `<td class="prob-cell">
+          <div class="prob-inner" title="State ${from}→${to}: ${p.toFixed(1)}% (vs clock ${clockP.toFixed(1)}%, Δ${sign}${diff.toFixed(1)}%)">
+            <div class="prob-bg" style="background:${bgCol}"></div>
+            <span class="prob-val ${cls}" style="font-size:10px">${sign}${diff.toFixed(1)}%</span>
+            <span style="font-size:8px;color:var(--muted);position:relative">${p.toFixed(1)}</span>
+          </div>
+        </td>`;
+      }
+    });
+
+    const nLabel = total === 0 ? '—' : total >= 10000 ? (total/1000).toFixed(0)+'k' : total.toLocaleString();
+    const lowN = total > 0 && total < 500;
+    tbody += `<td class="total-cell" style="color:${lowN ? 'var(--yellow)' : 'var(--muted)'}" title="${total.toLocaleString()} transitions">${nLabel}${lowN ? ' ⚠' : ''}</td></tr>`;
+  });
+
+  tbody += '</tbody>';
+  table.innerHTML = thead + tbody;
+}
+
+function updateNote() {
+  const notes = {
+    early: `<strong style="color:var(--green)">Early ticks (&lt;0.480s)</strong> — the tick arrived before the 0.5s clock fired. States 4 and 8 dominate early arrivals (64% early) and carry <strong style="color:var(--text)">100% zero price move</strong>. For directional states (2, 6, 7, 11), early arrival amplifies their edge close to certainty. Warning: states with low N (<500, marked ⚠) are statistically thin — treat those rows with caution.`,
+    clock: `<strong style="color:var(--accent)">Clock ticks (0.480–0.520s)</strong> — the regular 0.5s heartbeat. This is the baseline. 66.8% of all ticks. These are the "normal" probabilities. States 2 and 6 dominate (n≈49k each), giving the most reliable estimates in the dataset.`,
+    late: `<strong style="color:var(--orange)">Late ticks (&gt;0.520s)</strong> — arrived after the clock window. After a late tick, 89.4% of the time the NEXT tick returns to clock. The "Δ vs Clock" mode shows where late ticks differ most: State 1 sees +24% more →3 (bull pullback) transitions on late ticks, and State 9 sees +13% more →12 (bear pullback) transitions. Late ticks signal a stretched move that's more likely to partially retrace.`
+  };
+  document.getElementById('bottom-note').innerHTML = notes[currentSpeed];
+}
+
+function setSpeed(speed, btn) {
+  currentSpeed = speed;
+  document.querySelectorAll('.spd-btn').forEach(b => { b.className = 'spd-btn'; });
+  btn.className = `spd-btn active-${speed}`;
+  const descs = {
+    early: '<span style="color:var(--green)">Early ticks (&lt;0.480s)</span>',
+    clock: '<span style="color:var(--accent)">Clock ticks (0.480–0.520s)</span>',
+    late:  '<span style="color:var(--orange)">Late ticks (&gt;0.520s)</span>'
+  };
+  document.getElementById('speed-desc').innerHTML = descs[speed];
+  buildTable();
+  updateNote();
+}
+
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildTable();
+}
+
+buildLegend();
+buildTable();
+updateNote();
+</script>
+</body>
+</html>

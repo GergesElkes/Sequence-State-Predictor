@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAUUSD — Tick Speed Deep Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090c;
+  --s1: #0d1017;
+  --s2: #131820;
+  --border: #1a2030;
+  --b2: #222d40;
+  --text: #dce4f0;
+  --muted: #445060;
+  --m2: #6a7a96;
+  --accent: #38bdf8;
+  --green: #22d978;
+  --red: #f04060;
+  --yellow: #f5c430;
+  --purple: #9b70f5;
+  --orange: #f5813a;
+  --pink: #e040fb;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+/* HEADER */
+.hdr {
+  padding: 44px 48px 32px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: end;
+}
+.eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+h1 { font-size: 38px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+.sub { font-size: 13px; color: var(--m2); margin-top: 6px; }
+.kpis { display: flex; gap: 28px; }
+.kpi { text-align: right; }
+.kpi-val { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+.kpi-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }
+
+/* TABS */
+.tabs { display: flex; padding: 0 48px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab { padding: 13px 18px; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+       color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent;
+       cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* PANELS */
+.panel { display: none; padding: 36px 48px; }
+.panel.active { display: block; }
+
+/* SECTION */
+.sh { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; margin-top: 8px; }
+.sh-title { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.sh-line { flex: 1; height: 1px; background: var(--border); }
+
+/* CARDS */
+.card { background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+
+/* FINDING CHIP */
+.finding {
+  display: grid; grid-template-columns: 4px 1fr; gap: 18px;
+  background: var(--s1); border: 1px solid var(--border); border-radius: 14px;
+  padding: 20px 22px; margin-bottom: 12px;
+}
+.finding-bar { border-radius: 4px; }
+.finding h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.finding p { font-size: 12px; color: var(--m2); line-height: 1.7; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tag { font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 4px;
+       border: 1px solid var(--b2); color: var(--muted); }
+
+/* CANVAS */
+canvas { display: block; }
+
+/* BAR CHART */
+.bar-chart { display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: flex; align-items: center; gap: 10px; }
+.bar-lbl { font-family: var(--mono); font-size: 10px; color: var(--m2); width: 52px; flex-shrink: 0; text-align: right; }
+.bar-bg { flex: 1; height: 10px; background: var(--b2); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; }
+.bar-val { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 50px; }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+          color: var(--muted); padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: rgba(255,255,255,0.015); }
+
+/* SPEED REGIME PILLS */
+.pill { font-family: var(--mono); font-size: 10px; padding: 2px 9px; border-radius: 4px; display: inline-block; }
+.pill-clock { background: rgba(56,189,248,0.12); color: var(--accent); border: 1px solid rgba(56,189,248,0.25); }
+.pill-early { background: rgba(34,217,120,0.12); color: var(--green); border: 1px solid rgba(34,217,120,0.25); }
+.pill-late  { background: rgba(245,129,58,0.12); color: var(--orange); border: 1px solid rgba(245,129,58,0.25); }
+
+/* EDGE METER */
+.edge-meter { display: flex; align-items: center; gap: 6px; }
+.edge-bar-wrap { width: 90px; height: 6px; background: var(--b2); border-radius: 3px; overflow: hidden; position: relative; }
+.edge-bar-pos { height: 100%; border-radius: 3px; position: absolute; }
+.edge-num { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+
+/* SPEED MATRIX */
+.speed-matrix { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.sm-cell { background: var(--s2); border: 1px solid var(--border); border-radius: 10px;
+           padding: 14px 16px; text-align: center; }
+.sm-val { font-family: var(--mono); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.sm-lbl { font-size: 11px; color: var(--m2); }
+.sm-sub { font-size: 10px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+
+@media (max-width: 900px) {
+  .hdr { grid-template-columns: 1fr; padding: 24px 20px; }
+  .panel, .tabs { padding-left: 20px; padding-right: 20px; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+  h1 { font-size: 26px; }
+  .kpis { flex-wrap: wrap; gap: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="eyebrow">XAUUSD_OTC · 400K Ticks · Tick Speed Analysis</div>
+    <h1>Clock, Early<br>& Late Ticks</h1>
+    <div class="sub">The feed runs on a 0.500s heartbeat. Everything else is a deviation — and deviations reveal structure.</div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">0.500s</div><div class="kpi-lbl">Clock Heartbeat</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--green)">2.08</div><div class="kpi-lbl">Ticks / Second</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--yellow)">14</div><div class="kpi-lbl">Sessions</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--orange)">100.2h</div><div class="kpi-lbl">Active Time</div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="st('clock')">The Clock</button>
+  <button class="tab" onclick="st('regimes')">Speed Regimes</button>
+  <button class="tab" onclick="st('states')">States × Speed</button>
+  <button class="tab" onclick="st('sessions')">Sessions</button>
+  <button class="tab" onclick="st('findings')">Key Findings</button>
+</div>
+
+<!-- ══ THE CLOCK ══ -->
+<div id="tab-clock" class="panel active">
+  <div class="sh"><div class="sh-title">Inter-Tick Gap Distribution</div><div class="sh-line"></div></div>
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">GAP HISTOGRAM · 0.20s to 0.72s · n=399,968 ticks</div>
+    <canvas id="histCanvas" height="180"></canvas>
+    <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--m2)"><div style="width:12px;height:12px;border-radius:3px;background:rgba(34,217,120,0.7)"></div>Early (&lt;0.48s) — 20.2%</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--m2)"><div style="width:12px;height:12px;border-radius:3px;background:rgba(56,189,248,0.9)"></div>Clock (0.48–0.52s) — 66.8%</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--m2)"><div style="width:12px;height:12px;border-radius:3px;background:rgba(245,129,58,0.7)"></div>Late (&gt;0.52s) — 12.9%</div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:12px;">EARLY TICKS &lt;0.48s</div>
+      <div style="font-family:var(--mono);font-size:28px;font-weight:700;color:var(--green)">80,970</div>
+      <div style="font-size:12px;color:var(--m2);margin-top:6px;line-height:1.6;">20.2% of all ticks arrive before the 0.5s clock fires. These are the most informative — the price hasn't had time to "drift" since the last tick, so if it moved, it's a real directional push.</div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--green)">77.4% have ZERO price move</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">CLOCK TICKS 0.48–0.52s</div>
+      <div style="font-family:var(--mono);font-size:28px;font-weight:700;color:var(--accent)">267,343</div>
+      <div style="font-size:12px;color:var(--m2);margin-top:6px;line-height:1.6;">66.8% arrive on the heartbeat — the feed's regular emission. These represent the "normal" price update cadence. Mean move is 0.001831 per tick.</div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--accent)">13.2% have ZERO price move</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:12px;">LATE TICKS &gt;0.52s</div>
+      <div style="font-family:var(--mono);font-size:28px;font-weight:700;color:var(--orange)">51,655</div>
+      <div style="font-size:12px;color:var(--m2);margin-top:6px;line-height:1.6;">12.9% arrive late. Late ticks carry more price movement — price had more time to travel. Mean move essentially equals clock ticks despite longer wait.</div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--orange)">21.0% have ZERO price move</div>
+    </div>
+  </div>
+
+  <div class="sh"><div class="sh-title">Price Move Size by Gap Width</div><div class="sh-line"></div></div>
+  <div class="card">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">MEAN |PRICE CHANGE| AT EACH GAP SIZE — THE DEAD ZONE IS REAL</div>
+    <canvas id="moveCanvas" height="200"></canvas>
+    <div style="margin-top:14px;padding:12px 16px;background:rgba(245,192,48,0.06);border:1px solid rgba(245,192,48,0.2);border-radius:8px;font-size:12px;color:var(--m2);line-height:1.7;">
+      <strong style="color:var(--yellow)">The Dead Zone (0.30–0.44s):</strong> Gaps in this range carry nearly ZERO price movement — 96–99.9% of ticks at these intervals are price repeats.
+      The feed architecture: a new price is emitted every ~0.5s. If a tick arrives between 0.3s and 0.44s, it's too far from the previous clock beat to carry old info, but too early for the next clock update. Result: a repeated last price.
+    </div>
+  </div>
+</div>
+
+<!-- ══ SPEED REGIMES ══ -->
+<div id="tab-regimes" class="panel">
+  <div class="sh"><div class="sh-title">Speed Clustering Dynamics</div><div class="sh-line"></div></div>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">EARLY TICK → NEXT TICK TYPE</div>
+      <div class="speed-matrix" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="sm-cell">
+          <div class="sm-val" style="color:var(--green)">21.9%</div>
+          <div class="sm-lbl">E → E</div>
+          <div class="sm-sub">Early cluster</div>
+        </div>
+        <div class="sm-cell" style="border-color:var(--orange)44;">
+          <div class="sm-val" style="color:var(--orange)">54.4%</div>
+          <div class="sm-lbl">E → L</div>
+          <div class="sm-sub">⚡ Dominant!</div>
+        </div>
+        <div class="sm-cell">
+          <div class="sm-val" style="color:var(--accent)">23.7%</div>
+          <div class="sm-lbl">E → C</div>
+          <div class="sm-sub">Return to clock</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--m2);line-height:1.6;">
+        After an early tick, <strong style="color:var(--orange)">54.4% of the time the next tick is LATE</strong>. Physics of the clock: if a tick arrives early, the clock position shifts forward, making the next interval appear longer. Early → Late is the dominant transition.
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">LATE TICK → NEXT TICK TYPE</div>
+      <div class="speed-matrix" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="sm-cell">
+          <div class="sm-val" style="color:var(--green)">8.3%</div>
+          <div class="sm-lbl">L → E</div>
+          <div class="sm-sub">Rare</div>
+        </div>
+        <div class="sm-cell">
+          <div class="sm-val" style="color:var(--orange)">2.3%</div>
+          <div class="sm-lbl">L → L</div>
+          <div class="sm-sub">Very rare</div>
+        </div>
+        <div class="sm-cell" style="border-color:var(--accent)44;">
+          <div class="sm-val" style="color:var(--accent)">89.4%</div>
+          <div class="sm-lbl">L → C</div>
+          <div class="sm-sub">⚡ Dominant!</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--m2);line-height:1.6;">
+        After a late tick, <strong style="color:var(--accent)">89.4% of the time the next tick returns to the clock</strong>. Late ticks don't cluster — they're single deviations that self-correct immediately. The clock is a strong attractor.
+      </div>
+    </div>
+  </div>
+
+  <div class="sh"><div class="sh-title">Gap Autocorrelation</div><div class="sh-line"></div></div>
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">PEARSON CORRELATION: GAP[t] vs GAP[t+lag]</div>
+    <canvas id="acfCanvas" height="160"></canvas>
+    <div style="margin-top:12px;font-size:12px;color:var(--m2);line-height:1.6;">
+      Lag-1 shows slight positive correlation (+0.079): early ticks tend to cluster slightly. Lags 3–5 show growing negative correlation (−0.11 to −0.18): the E→L→C pattern creates a predictable oscillation in gap sizes around the 0.5s clock.
+    </div>
+  </div>
+
+  <div class="sh"><div class="sh-title">The 0.51–0.52s Volatility Spike</div><div class="sh-line"></div></div>
+  <div class="card">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">MEAN |PRICE MOVE| ZOOMED — ANOMALY AT 0.51–0.52s</div>
+    <div id="voltable"></div>
+    <div style="margin-top:14px;padding:12px 16px;background:rgba(155,112,245,0.06);border:1px solid rgba(155,112,245,0.2);border-radius:8px;font-size:12px;color:var(--m2);line-height:1.7;">
+      <strong style="color:var(--purple)">The 0.51–0.52s band has 3× the mean price move of surrounding bands (0.00520 vs ~0.0016).</strong>
+      This is the "double-fire" zone: a tick arrived at the regular clock beat, AND an immediate price update followed within the next 10ms. This is when the feed receives a quote revision right as the clock fires — resulting in a bigger observed move.
+    </div>
+  </div>
+</div>
+
+<!-- ══ STATES × SPEED ══ -->
+<div id="tab-states" class="panel">
+  <div class="sh"><div class="sh-title">States 4 & 8 Are Clock Artifacts</div><div class="sh-line"></div></div>
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card" style="border-color:rgba(34,217,120,0.3);">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:12px;">STATE 8 — "Bull Pause" (Rise → Flat)</div>
+      <div style="display:flex;gap:16px;margin-bottom:14px;">
+        <div><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--green)">64.0%</div><div style="font-size:11px;color:var(--m2)">EARLY ticks</div></div>
+        <div><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--accent)">35.2%</div><div style="font-size:11px;color:var(--m2)">CLOCK ticks</div></div>
+        <div><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--orange)">0.9%</div><div style="font-size:11px;color:var(--m2)">LATE ticks</div></div>
+      </div>
+      <div style="padding:10px 12px;background:rgba(240,64,96,0.08);border-radius:8px;font-size:12px;color:var(--m2);line-height:1.6;border-left:3px solid var(--red);">
+        <strong style="color:var(--red)">100% zero price move.</strong> State 8 arises because an early tick arrives with the same price as the previous one. The "rise" is real (t3→t2 was a genuine move) but the "flat" (t2=t1) is a clock artifact — the price didn't update yet. This is not real consolidation.
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(240,64,96,0.3);">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:12px;">STATE 4 — "Bear Pause" (Drop → Flat)</div>
+      <div style="display:flex;gap:16px;margin-bottom:14px;">
+        <div><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--green)">64.5%</div><div style="font-size:11px;color:var(--m2)">EARLY ticks</div></div>
+        <div><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--accent)">34.7%</div><div style="font-size:11px;color:var(--m2)">CLOCK ticks</div></div>
+        <div><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--orange)">0.8%</div><div style="font-size:11px;color:var(--m2)">LATE ticks</div></div>
+      </div>
+      <div style="padding:10px 12px;background:rgba(240,64,96,0.08);border-radius:8px;font-size:12px;color:var(--m2);line-height:1.6;border-left:3px solid var(--red);">
+        <strong style="color:var(--red)">100% zero price move.</strong> Mirror of state 8. The "flat" in state 4 is not a price holding level — it's the feed repeating last-known price before the clock's next emission. <em>States 4 and 8 are feed timing noise, not market structure.</em>
+      </div>
+    </div>
+  </div>
+
+  <div class="sh"><div class="sh-title">Edge by Tick Speed Regime — All 13 States</div><div class="sh-line"></div></div>
+  <div class="card">
+    <table class="tbl" id="state-speed-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Clock Edge</th>
+          <th>Early Edge</th>
+          <th>Late Edge</th>
+          <th>Speed Amplifies?</th>
+          <th>Max Spread</th>
+        </tr>
+      </thead>
+      <tbody id="state-speed-tbody"></tbody>
+    </table>
+    <div style="margin-top:16px;padding:12px 16px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:8px;font-size:12px;color:var(--m2);line-height:1.7;">
+      <strong style="color:var(--accent)">When a directional tick arrives EARLY, its edge amplifies to near-certainty.</strong>
+      State 2 (bull trend) goes from +57.1% edge on clock ticks to +98.1% on early ticks. State 7 (bull reversal) goes from +88.6% to +99.5%.
+      The mechanism: an early tick for a directional state means the price moved in that direction <em>before</em> the clock's normal update window — a sign of urgency/conviction in that direction.
+    </div>
+  </div>
+</div>
+
+<!-- ══ SESSIONS ══ -->
+<div id="tab-sessions" class="panel">
+  <div class="sh"><div class="sh-title">Session Structure — 14 Trading Sessions Detected</div><div class="sh-line"></div></div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">SESSION TIMELINE — TICK COUNT PER SESSION</div>
+    <canvas id="sessCanvas" height="180"></canvas>
+  </div>
+
+  <div class="sh"><div class="sh-title">Session Detail Table</div><div class="sh-line"></div></div>
+  <div class="card">
+    <table class="tbl">
+      <thead>
+        <tr><th>#</th><th>Start (hour)</th><th>Duration</th><th>Tick Count</th><th>Ticks/Sec</th><th>Mean Gap</th><th>Notes</th></tr>
+      </thead>
+      <tbody id="sess-tbody"></tbody>
+    </table>
+    <div style="margin-top:14px;padding:12px 16px;background:rgba(155,112,245,0.06);border:1px solid rgba(155,112,245,0.2);border-radius:8px;font-size:12px;color:var(--m2);line-height:1.7;">
+      <strong style="color:var(--purple)">The clock speed is rock-solid at 2.07–2.09 ticks/second across all 14 sessions.</strong>
+      Mean gap varies only between 0.4794s and 0.4845s — a spread of just 5ms over 100+ hours of trading and multiple separate sessions.
+      This is a fixed-cadence synthetic OTC feed, not organic exchange tick data. Session gaps (up to 11 hours) correspond to market-closed periods.
+    </div>
+  </div>
+</div>
+
+<!-- ══ KEY FINDINGS ══ -->
+<div id="tab-findings" class="panel">
+  <div class="grid4" style="margin-bottom:24px;">
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent)">0.500s</div>
+      <div style="font-size:12px;font-weight:600;margin:6px 0 4px;">Fixed Clock</div>
+      <div style="font-size:11px;color:var(--muted)">Synthetic OTC feed with a heartbeat. Not organic.</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--green)">+98.1%</div>
+      <div style="font-size:12px;font-weight:600;margin:6px 0 4px;">State 2 Early Edge</div>
+      <div style="font-size:11px;color:var(--muted)">Up from +57.1% on clock ticks</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--red)">100%</div>
+      <div style="font-size:12px;font-weight:600;margin:6px 0 4px;">States 4&8 Are Zeros</div>
+      <div style="font-size:11px;color:var(--muted)">No price move ever. Feed artifacts.</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--orange)">54.4%</div>
+      <div style="font-size:12px;font-weight:600;margin:6px 0 4px;">Early → Late</div>
+      <div style="font-size:11px;color:var(--muted)">Clock compensation effect</div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-bar" style="background:var(--red)"></div>
+    <div>
+      <h3>States 4 & 8 Are Clock Artifacts, Not Market Structure</h3>
+      <p>64% of state 4 (bear pause) and state 8 (bull pause) occurrences are EARLY ticks — ticks that arrived before the 0.5s clock fired. Every single one of these has zero price movement. The "flat" in states 4 and 8 is not price consolidation: it's the feed repeating the last-known price while waiting for the next clock emission. Their near-zero directional edge (~0.2–0.5%) is explained entirely by this mechanical artifact. If you were building a strategy around these states, you'd be trading feed latency noise, not market information.</p>
+      <div class="tags"><span class="tag">State 4</span><span class="tag">State 8</span><span class="tag">64% early ticks</span><span class="tag">100% zero move</span><span class="tag">Clock artifact</span></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-bar" style="background:var(--green)"></div>
+    <div>
+      <h3>Early Ticks Are Near-Perfect Predictors for Directional States</h3>
+      <p>When a tick arrives early AND it forms a directional state, the predictive edge amplifies dramatically toward certainty. State 2 (bull staircase): +57.1% → +98.1%. State 6 (bear staircase): −57.1% → −98.1%. State 7 (bull reversal): +88.6% → +99.5%. State 11 (bear reversal): −88.4% → −99.6%. The mechanism: an early tick means the price moved <em>urgently</em> — before the regular clock window. This urgency is a signal that the move has conviction. On clock ticks, there's always some probability the move was just the clock's random update. On early ticks, the move happened out-of-schedule, which is much less common and more informative.</p>
+      <div class="tags"><span class="tag">State 2: +98.1%</span><span class="tag">State 6: −98.1%</span><span class="tag">State 7: +99.5%</span><span class="tag">State 11: −99.6%</span><span class="tag">Conviction signal</span></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-bar" style="background:var(--orange)"></div>
+    <div>
+      <h3>Early → Late is the Dominant Transition (54.4%)</h3>
+      <p>After an early tick, more than half the time the next tick is late. This is a clock compensation effect: when a tick fires early, it shifts the effective clock position forward, causing the next emission to fall later in relative time. This creates a predictable oscillation in gap sizes. Strategically: if you observe an early tick, the <em>next</em> tick's gap will be late (>0.52s) more often than not. This has implications for time-based strategies — the inter-tick timing is not memoryless (gap autocorrelation at lag-3 = −0.107, lag-5 = −0.177).</p>
+      <div class="tags"><span class="tag">E→L: 54.4%</span><span class="tag">L→C: 89.4%</span><span class="tag">Lag-3 r=−0.107</span><span class="tag">Lag-5 r=−0.177</span><span class="tag">Clock compensation</span></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-bar" style="background:var(--purple)"></div>
+    <div>
+      <h3>The 0.30–0.44s Dead Zone: 96–99.9% Price Repeats</h3>
+      <p>Ticks arriving 300–440ms after the previous tick carry almost zero price information — they are overwhelmingly price repeats. This is the "dead zone" between two consecutive clock beats. A tick in this range means: the previous tick fired at time T, and a new tick arrived at T+0.35s for example, too far from T to still carry the same clock's price, but too early for the next 0.5s clock to have generated a new price. The result is a repeated last price. Compare: 0.30–0.35s = 96.4% zeros; 0.35–0.40s = 99.9% zeros; 0.40–0.44s = 99.7% zeros.</p>
+      <div class="tags"><span class="tag">0.30–0.35s: 96.4% zero</span><span class="tag">0.35–0.40s: 99.9% zero</span><span class="tag">Feed architecture</span><span class="tag">Clock timing</span></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-bar" style="background:var(--yellow)"></div>
+    <div>
+      <h3>The 0.51–0.52s Double-Fire Zone: 3× Volatility</h3>
+      <p>Ticks arriving 510–520ms after the previous tick have a mean price move of 0.00520 — more than 3× the surrounding gap bands (~0.0016). This is the "double-fire" phenomenon: a clock tick fired at the regular ~0.5s mark, AND a quote revision arrived within ~10–20ms. The two events are compressed into a single observed tick that appears "late" by 10–20ms but actually contains two price updates stacked together. These rare ticks (~32k occurrences, 8% of normal-gap ticks) are the highest-volatility moments in the data.</p>
+      <div class="tags"><span class="tag">0.51–0.52s band</span><span class="tag">Mean move 0.00520</span><span class="tag">3× normal volatility</span><span class="tag">Double-fire event</span><span class="tag">n=32,442</span></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-bar" style="background:var(--accent)"></div>
+    <div>
+      <h3>Rock-Solid Clock: 2.07–2.09 TPS Across All 14 Sessions</h3>
+      <p>Across 14 separate trading sessions spanning over 100 hours, the tick rate never deviates meaningfully from 2.08 ticks/second. The mean gap across sessions ranges only from 0.4794s to 0.4845s — a total spread of 5.1ms. This rules out adaptive throttling, congestion-based slowdown, or any session-level variation in the feed's emission rate. The feed is a fixed-cadence synthetic clock. Implications for the Markov analysis: the state system is driven primarily by a deterministic timer with Gaussian jitter, not by organic order flow dynamics. The "edge" in the states comes from price update patterns around this timer, not from exchange microstructure.</p>
+      <div class="tags"><span class="tag">14 sessions</span><span class="tag">2.072–2.086 TPS</span><span class="tag">5ms spread</span><span class="tag">Synthetic feed</span><span class="tag">Fixed cadence</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAP_HIST = [{"x":0.2012,"y":882},{"x":0.2037,"y":664},{"x":0.2062,"y":976},{"x":0.2087,"y":607},{"x":0.2111,"y":911},{"x":0.2136,"y":630},{"x":0.2161,"y":910},{"x":0.2185,"y":682},{"x":0.221,"y":994},{"x":0.2235,"y":635},{"x":0.226,"y":964},{"x":0.2284,"y":645},{"x":0.2309,"y":998},{"x":0.2334,"y":644},{"x":0.2359,"y":972},{"x":0.2383,"y":659},{"x":0.2408,"y":993},{"x":0.2433,"y":631},{"x":0.2457,"y":615},{"x":0.2482,"y":966},{"x":0.2507,"y":653},{"x":0.2532,"y":961},{"x":0.2556,"y":668},{"x":0.2581,"y":1005},{"x":0.2606,"y":656},{"x":0.2631,"y":1037},{"x":0.2655,"y":633},{"x":0.268,"y":977},{"x":0.2705,"y":660},{"x":0.2729,"y":973},{"x":0.2754,"y":625},{"x":0.2779,"y":976},{"x":0.2804,"y":677},{"x":0.2828,"y":970},{"x":0.2853,"y":613},{"x":0.2878,"y":875},{"x":0.2903,"y":623},{"x":0.2927,"y":630},{"x":0.2952,"y":893},{"x":0.2977,"y":659},{"x":0.3001,"y":829},{"x":0.3026,"y":457},{"x":0.3051,"y":584},{"x":0.3076,"y":420},{"x":0.31,"y":648},{"x":0.3125,"y":459},{"x":0.315,"y":655},{"x":0.3175,"y":419},{"x":0.3199,"y":653},{"x":0.3224,"y":406},{"x":0.3249,"y":628},{"x":0.3273,"y":404},{"x":0.3298,"y":696},{"x":0.3323,"y":420},{"x":0.3348,"y":648},{"x":0.3372,"y":479},{"x":0.3397,"y":416},{"x":0.3422,"y":635},{"x":0.3447,"y":428},{"x":0.3471,"y":700},{"x":0.3496,"y":452},{"x":0.3521,"y":650},{"x":0.3545,"y":456},{"x":0.357,"y":652},{"x":0.3595,"y":424},{"x":0.362,"y":686},{"x":0.3644,"y":470},{"x":0.3669,"y":716},{"x":0.3694,"y":458},{"x":0.3719,"y":680},{"x":0.3743,"y":458},{"x":0.3768,"y":675},{"x":0.3793,"y":498},{"x":0.3817,"y":481},{"x":0.3842,"y":719},{"x":0.3867,"y":441},{"x":0.3892,"y":707},{"x":0.3916,"y":491},{"x":0.3941,"y":778},{"x":0.3966,"y":599},{"x":0.3991,"y":795},{"x":0.4015,"y":493},{"x":0.404,"y":695},{"x":0.4065,"y":514},{"x":0.4089,"y":733},{"x":0.4114,"y":458},{"x":0.4139,"y":777},{"x":0.4164,"y":552},{"x":0.4188,"y":861},{"x":0.4213,"y":508},{"x":0.4238,"y":762},{"x":0.4263,"y":533},{"x":0.4287,"y":555},{"x":0.4312,"y":793},{"x":0.4337,"y":587},{"x":0.4361,"y":923},{"x":0.4386,"y":573},{"x":0.4411,"y":870},{"x":0.4436,"y":598},{"x":0.446,"y":818},{"x":0.4485,"y":561},{"x":0.451,"y":953},{"x":0.4535,"y":868},{"x":0.4559,"y":987},{"x":0.4584,"y":596},{"x":0.4609,"y":951},{"x":0.4633,"y":648},{"x":0.4658,"y":1133},{"x":0.4683,"y":2082},{"x":0.4708,"y":1670},{"x":0.4732,"y":888},{"x":0.4757,"y":713},{"x":0.4782,"y":1268},{"x":0.4807,"y":1130},{"x":0.4831,"y":9557},{"x":0.4856,"y":12123},{"x":0.4881,"y":3667},{"x":0.4905,"y":1390},{"x":0.493,"y":3122},{"x":0.4955,"y":3064},{"x":0.498,"y":38394},{"x":0.5004,"y":124854},{"x":0.5029,"y":30836},{"x":0.5054,"y":3051},{"x":0.5079,"y":3097},{"x":0.5103,"y":1337},{"x":0.5128,"y":4379},{"x":0.5153,"y":18345},{"x":0.5177,"y":7444},{"x":0.5202,"y":2199},{"x":0.5227,"y":926},{"x":0.5252,"y":1183},{"x":0.5276,"y":786},{"x":0.5301,"y":3683},{"x":0.5326,"y":2406},{"x":0.5351,"y":1314},{"x":0.5375,"y":699},{"x":0.54,"y":962},{"x":0.5425,"y":649},{"x":0.5449,"y":1051},{"x":0.5474,"y":910},{"x":0.5499,"y":925},{"x":0.5524,"y":532},{"x":0.5548,"y":865},{"x":0.5573,"y":554},{"x":0.5598,"y":887},{"x":0.5623,"y":610},{"x":0.5647,"y":612},{"x":0.5672,"y":874},{"x":0.5697,"y":518},{"x":0.5721,"y":811},{"x":0.5746,"y":530},{"x":0.5771,"y":764},{"x":0.5796,"y":540},{"x":0.582,"y":854},{"x":0.5845,"y":547},{"x":0.587,"y":734},{"x":0.5895,"y":500},{"x":0.5919,"y":718},{"x":0.5944,"y":488},{"x":0.5969,"y":754},{"x":0.5993,"y":522},{"x":0.6018,"y":814},{"x":0.6043,"y":565},{"x":0.6068,"y":544},{"x":0.6092,"y":728},{"x":0.6117,"y":491},{"x":0.6142,"y":678},{"x":0.6167,"y":481},{"x":0.6191,"y":726},{"x":0.6216,"y":473},{"x":0.6241,"y":667},{"x":0.6265,"y":450},{"x":0.629,"y":744},{"x":0.6315,"y":437},{"x":0.634,"y":686},{"x":0.6364,"y":467},{"x":0.6389,"y":685},{"x":0.6414,"y":413},{"x":0.6439,"y":647},{"x":0.6463,"y":419},{"x":0.6488,"y":714},{"x":0.6513,"y":452},{"x":0.6537,"y":473},{"x":0.6562,"y":665},{"x":0.6587,"y":414},{"x":0.6612,"y":612},{"x":0.6636,"y":420},{"x":0.6661,"y":685},{"x":0.6686,"y":427},{"x":0.6711,"y":659},{"x":0.6735,"y":430},{"x":0.676,"y":609},{"x":0.6785,"y":394},{"x":0.6809,"y":613},{"x":0.6834,"y":372},{"x":0.6859,"y":604},{"x":0.6884,"y":398},{"x":0.6908,"y":498},{"x":0.6933,"y":333},{"x":0.6958,"y":503},{"x":0.6983,"y":296}];
+
+const MOVE_BY_GAP = [{"lo":0.2,"hi":0.3,"n":32266,"mean":0.000686,"zero_pct":55.52},{"lo":0.3,"hi":0.35,"n":10824,"mean":0.000059,"zero_pct":96.36},{"lo":0.35,"hi":0.4,"n":11782,"mean":0.000002,"zero_pct":99.9},{"lo":0.4,"hi":0.44,"n":10506,"mean":0.000005,"zero_pct":99.67},{"lo":0.44,"hi":0.46,"n":6261,"mean":0.000122,"zero_pct":92.48},{"lo":0.46,"hi":0.48,"n":9331,"mean":0.000497,"zero_pct":67.7},{"lo":0.48,"hi":0.49,"n":26463,"mean":0.001258,"zero_pct":20.49},{"lo":0.49,"hi":0.495,"n":5190,"mean":0.000972,"zero_pct":38.98},{"lo":0.495,"hi":0.5,"n":40757,"mean":0.001351,"zero_pct":13.83},{"lo":0.5,"hi":0.505,"n":156522,"mean":0.001397,"zero_pct":10.96},{"lo":0.505,"hi":0.51,"n":5969,"mean":0.001461,"zero_pct":16.23},{"lo":0.51,"hi":0.52,"n":32442,"mean":0.005204,"zero_pct":12.27},{"lo":0.52,"hi":0.54,"n":12201,"mean":0.001646,"zero_pct":16.76},{"lo":0.54,"hi":0.56,"n":6402,"mean":0.001799,"zero_pct":21.35},{"lo":0.56,"hi":0.6,"n":10603,"mean":0.001892,"zero_pct":22.51},{"lo":0.6,"hi":0.65,"n":11782,"mean":0.001869,"zero_pct":22.58},{"lo":0.65,"hi":0.7,"n":10039,"mean":0.001877,"zero_pct":22.37}];
+
+const SESSIONS = [{"n":13369,"dur_h":1.794,"tps":2.07,"mean_gap":0.48303,"t_start_h":0},{"n":4027,"dur_h":0.542,"tps":2.064,"mean_gap":0.48451,"t_start_h":1.994},{"n":9842,"dur_h":1.316,"tps":2.077,"mean_gap":0.48157,"t_start_h":7.393},{"n":15104,"dur_h":2.011,"tps":2.086,"mean_gap":0.47938,"t_start_h":19.677},{"n":5500,"dur_h":0.735,"tps":2.079,"mean_gap":0.48109,"t_start_h":25.283},{"n":24707,"dur_h":3.308,"tps":2.074,"mean_gap":0.48208,"t_start_h":26.051},{"n":75553,"dur_h":10.13,"tps":2.072,"mean_gap":0.48267,"t_start_h":29.543},{"n":73360,"dur_h":9.78,"tps":2.084,"mean_gap":0.47993,"t_start_h":42.379},{"n":22657,"dur_h":3.022,"tps":2.083,"mean_gap":0.48021,"t_start_h":52.748},{"n":66219,"dur_h":8.841,"tps":2.081,"mean_gap":0.48063,"t_start_h":64.145},{"n":11779,"dur_h":1.579,"tps":2.073,"mean_gap":0.48252,"t_start_h":76.423},{"n":47671,"dur_h":6.361,"tps":2.082,"mean_gap":0.48038,"t_start_h":87.223},{"n":23617,"dur_h":3.15,"tps":2.082,"mean_gap":0.48022,"t_start_h":94.147},{"n":6595,"dur_h":0.879,"tps":2.084,"mean_gap":0.47999,"t_start_h":99.34}];
+
+const STATE_SPEED = [
+  {id:0,  name:"FLATLINE",       ce:-0.001, ee:-0.001, le:+0.002},
+  {id:1,  name:"BULL BREAKOUT",  ce:+0.648, ee:+0.933, le:+0.650},
+  {id:2,  name:"BULL TREND",     ce:+0.571, ee:+0.981, le:+0.573},
+  {id:3,  name:"BULL PULLBACK",  ce:-0.486, ee:-0.968, le:-0.432},
+  {id:4,  name:"BEAR PAUSE",     ce:-0.001, ee:+0.000, le:+0.004},
+  {id:5,  name:"BULL TRAP",      ce:-0.485, ee:-0.976, le:-0.413},
+  {id:6,  name:"BEAR TREND",     ce:-0.571, ee:-0.981, le:-0.519},
+  {id:7,  name:"BULL REVERSAL",  ce:+0.886, ee:+0.995, le:+0.916},
+  {id:8,  name:"BULL PAUSE",     ce:-0.002, ee:+0.006, le:+0.009},
+  {id:9,  name:"BEAR BREAKOUT",  ce:-0.646, ee:-0.940, le:-0.675},
+  {id:10, name:"EXACT RECOVERY", ce:+0.476, ee:+0.975, le:+0.440},
+  {id:11, name:"BEAR REVERSAL",  ce:-0.884, ee:-0.996, le:-0.850},
+  {id:12, name:"BEAR PULLBACK",  ce:+0.480, ee:+0.978, le:+0.423},
+];
+
+const COLORS = {0:'#4a5468',1:'#38bdf8',2:'#22d978',3:'#f5c430',4:'#f5813a',5:'#9b70f5',
+                6:'#f04060',7:'#22d978',8:'#22d978',9:'#f5813a',10:'#9b70f5',11:'#f04060',12:'#f5c430'};
+
+// ── TAB ──
+function st(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── CANVAS UTILS ──
+function setupCanvas(id, h) {
+  const el = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const w = el.parentElement.clientWidth - 44;
+  el.style.width = w + 'px'; el.style.height = h + 'px';
+  el.width = w * dpr; el.height = h * dpr;
+  const ctx = el.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return {ctx, w, h};
+}
+
+function drawGrid(ctx, w, h, pad, nLines=4) {
+  ctx.strokeStyle = '#1a2030'; ctx.lineWidth = 1;
+  for (let i=0; i<=nLines; i++) {
+    const y = pad.top + (h - pad.top - pad.bottom) * i / nLines;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+  }
+}
+
+// ── GAP HISTOGRAM ──
+function drawHist() {
+  const {ctx, w, h} = setupCanvas('histCanvas', 180);
+  const pad = {top:10, bottom:28, left:48, right:10};
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const maxY = Math.max(...GAP_HIST.map(d=>d.y));
+  const minX = GAP_HIST[0].x, maxX = GAP_HIST[GAP_HIST.length-1].x;
+  const xScale = x => pad.left + (x - minX) / (maxX - minX) * cw;
+  const yScale = y => pad.top + ch - (y / maxY) * ch;
+  const bw = cw / GAP_HIST.length * 0.9;
+
+  drawGrid(ctx, w, h, pad, 4);
+
+  // Colored bars
+  GAP_HIST.forEach(d => {
+    const bx = xScale(d.x) - bw/2;
+    const bh = (d.y / maxY) * ch;
+    let color;
+    if (d.x < 0.48) color = 'rgba(34,217,120,0.7)';
+    else if (d.x <= 0.52) color = 'rgba(56,189,248,0.9)';
+    else color = 'rgba(245,129,58,0.7)';
+    ctx.fillStyle = color;
+    ctx.fillRect(bx, pad.top + ch - bh, bw, bh);
+  });
+
+  // Region labels
+  ctx.fillStyle = '#1a2030';
+  ctx.fillRect(xScale(0.3), pad.top, xScale(0.44) - xScale(0.3), ch);
+  ctx.fillStyle = 'rgba(245,192,48,0.06)';
+  ctx.fillRect(xScale(0.3), pad.top, xScale(0.44) - xScale(0.3), ch);
+  ctx.strokeStyle = 'rgba(245,192,48,0.3)'; ctx.lineWidth = 1;
+  ctx.strokeRect(xScale(0.3), pad.top, xScale(0.44) - xScale(0.3), ch);
+
+  ctx.fillStyle = 'rgba(245,192,48,0.7)'; ctx.font = '9px Space Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('DEAD ZONE', xScale(0.37), pad.top + 14);
+
+  // Clock line
+  ctx.strokeStyle = 'rgba(56,189,248,0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(xScale(0.5), pad.top); ctx.lineTo(xScale(0.5), pad.top+ch); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // X axis labels
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+  [0.2, 0.3, 0.4, 0.48, 0.5, 0.52, 0.6, 0.7].forEach(v => {
+    ctx.fillText(v.toFixed(2)+'s', xScale(v), h - 6);
+  });
+
+  // Y axis
+  ctx.textAlign = 'right';
+  [0, 50000, 100000].forEach(v => {
+    ctx.fillText(v >= 1000 ? (v/1000)+'k' : v, pad.left - 4, yScale(v) + 4);
+  });
+}
+
+// ── MOVE BY GAP ──
+function drawMove() {
+  const {ctx, w, h} = setupCanvas('moveCanvas', 200);
+  const pad = {top:10, bottom:28, left:58, right:10};
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+
+  const data = MOVE_BY_GAP;
+  const midPoints = data.map(d => (d.lo + d.hi) / 2);
+  const means = data.map(d => d.mean);
+  const maxMean = Math.max(...means) * 1.08;
+  const minX = 0.2, maxX = 0.7;
+  const xScale = x => pad.left + (x - minX) / (maxX - minX) * cw;
+  const yScale = y => pad.top + ch - (y / maxMean) * ch;
+
+  drawGrid(ctx, w, h, pad, 4);
+
+  // Dead zone highlight
+  ctx.fillStyle = 'rgba(245,192,48,0.05)';
+  ctx.fillRect(xScale(0.3), pad.top, xScale(0.44) - xScale(0.3), ch);
+
+  // Double fire highlight
+  ctx.fillStyle = 'rgba(155,112,245,0.07)';
+  ctx.fillRect(xScale(0.51), pad.top, xScale(0.52) - xScale(0.51), ch);
+
+  // Bars
+  data.forEach((d, i) => {
+    const bx = xScale(d.lo);
+    const bw = (xScale(d.hi) - xScale(d.lo)) * 0.85;
+    const bh = (d.mean / maxMean) * ch;
+    let color;
+    if (d.hi <= 0.48) color = d.mean < 0.0001 ? 'rgba(245,192,48,0.5)' : 'rgba(34,217,120,0.6)';
+    else if (d.lo >= 0.51 && d.hi <= 0.52) color = 'rgba(155,112,245,0.9)';
+    else if (d.lo >= 0.48 && d.hi <= 0.52) color = 'rgba(56,189,248,0.7)';
+    else color = 'rgba(245,129,58,0.6)';
+    ctx.fillStyle = color;
+    ctx.fillRect(bx, pad.top + ch - bh, bw, bh);
+  });
+
+  // Annotations
+  ctx.fillStyle = 'rgba(245,192,48,0.8)'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+  ctx.fillText('DEAD', xScale(0.37), pad.top + 20);
+  ctx.fillText('ZONE', xScale(0.37), pad.top + 32);
+  ctx.fillStyle = 'rgba(155,112,245,0.9)';
+  ctx.fillText('3× VOL', xScale(0.515), pad.top + 14);
+
+  // Axes
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+  [0.2, 0.3, 0.4, 0.48, 0.5, 0.52, 0.6, 0.7].forEach(v => {
+    ctx.fillText(v.toFixed(2)+'s', xScale(v), h - 6);
+  });
+  ctx.textAlign = 'right';
+  [0, 0.002, 0.004].forEach(v => {
+    ctx.fillText(v.toFixed(3), pad.left - 4, yScale(v) + 4);
+  });
+}
+
+// ── ACF ──
+function drawACF() {
+  const {ctx, w, h} = setupCanvas('acfCanvas', 160);
+  const pad = {top:16, bottom:28, left:52, right:20};
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const acf = [0.0, 0.0794, 0.0065, -0.1075, -0.1131, -0.1768];
+  const maxAbs = 0.22;
+  const yScale = v => pad.top + ch/2 - (v / maxAbs) * (ch/2);
+  const xScale = i => pad.left + (i / (acf.length-1)) * cw;
+
+  // grid
+  ctx.strokeStyle = '#1a2030'; ctx.lineWidth = 1;
+  [-0.2,-0.1,0,0.1].forEach(v => {
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w-pad.right, y); ctx.stroke();
+  });
+
+  // zero line
+  ctx.strokeStyle = '#222d40'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(pad.left, yScale(0)); ctx.lineTo(w-pad.right, yScale(0)); ctx.stroke();
+
+  // confidence bands ±2/sqrt(n)
+  const conf = 2 / Math.sqrt(399967);
+  ctx.fillStyle = 'rgba(56,189,248,0.06)';
+  ctx.fillRect(pad.left, yScale(conf), cw, yScale(-conf) - yScale(conf));
+
+  // bars
+  acf.forEach((v, i) => {
+    const x = xScale(i);
+    const y0 = yScale(0);
+    const y1 = yScale(v);
+    ctx.fillStyle = v >= 0 ? 'rgba(56,189,248,0.8)' : 'rgba(240,64,96,0.8)';
+    ctx.fillRect(x - 10, Math.min(y0,y1), 20, Math.abs(y1-y0));
+    ctx.fillStyle = '#6a7a96'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+    ctx.fillText('lag'+i, x, h-6);
+    ctx.fillStyle = v >= 0 ? '#38bdf8' : '#f04060';
+    ctx.fillText(v.toFixed(3), x, v >= 0 ? y1 - 4 : y1 + 12);
+  });
+}
+
+// ── SESSION CHART ──
+function drawSessions() {
+  const {ctx, w, h} = setupCanvas('sessCanvas', 180);
+  const pad = {top:10, bottom:28, left:60, right:10};
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const maxN = Math.max(...SESSIONS.map(s=>s.n));
+  const maxT = SESSIONS[SESSIONS.length-1].t_start_h + SESSIONS[SESSIONS.length-1].dur_h + 2;
+
+  drawGrid(ctx, w, h, pad, 4);
+
+  SESSIONS.forEach((s, i) => {
+    const x = pad.left + (s.t_start_h / maxT) * cw;
+    const bw = Math.max(2, (s.dur_h / maxT) * cw - 1);
+    const bh = (s.n / maxN) * ch;
+    const alpha = 0.5 + (s.n / maxN) * 0.4;
+    ctx.fillStyle = `rgba(56,189,248,${alpha})`;
+    ctx.fillRect(x, pad.top + ch - bh, bw, bh);
+    ctx.fillStyle = '#4a5468'; ctx.font = '8px Space Mono'; ctx.textAlign = 'center';
+    if (bw > 12) ctx.fillText(i+1, x + bw/2, pad.top + ch - bh - 3);
+  });
+
+  ctx.fillStyle = '#4a5468'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+  [0,25,50,75,100].forEach(v => {
+    const x = pad.left + (v / maxT) * cw;
+    ctx.fillText(v+'h', x, h-6);
+  });
+  ctx.textAlign = 'right';
+  [0, 25000, 50000, 75000].forEach(v => {
+    const y = pad.top + ch - (v / maxN) * ch;
+    ctx.fillText(v >= 1000 ? (v/1000)+'k' : v, pad.left-4, y+4);
+  });
+}
+
+// ── SESSION TABLE ──
+function buildSessTable() {
+  const tb = document.getElementById('sess-tbody');
+  SESSIONS.forEach((s,i) => {
+    const isBig = s.n > 50000;
+    tb.innerHTML += `<tr>
+      <td style="font-family:var(--mono);font-weight:700;color:var(--accent)">${i+1}</td>
+      <td style="font-family:var(--mono);font-size:11px">${s.t_start_h.toFixed(1)}h</td>
+      <td style="font-family:var(--mono);font-size:11px">${s.dur_h.toFixed(2)}h</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${isBig?'var(--accent)':'var(--text)'}">${s.n.toLocaleString()}</td>
+      <td style="font-family:var(--mono);font-size:11px">${s.tps.toFixed(3)}</td>
+      <td style="font-family:var(--mono);font-size:11px">${s.mean_gap.toFixed(5)}s</td>
+      <td style="font-size:11px;color:var(--m2)">${isBig ? '📊 Major session' : s.n < 6000 ? '⚡ Short burst' : 'Regular'}</td>
+    </tr>`;
+  });
+}
+
+// ── VOLATILITY TABLE ──
+function buildVolTable() {
+  let html = '<table class="tbl"><thead><tr><th>Gap Range</th><th>Count</th><th>Zero Move %</th><th>Mean |Move|</th><th>Note</th></tr></thead><tbody>';
+  MOVE_BY_GAP.forEach(d => {
+    const isDeadZone = d.lo >= 0.3 && d.hi <= 0.44;
+    const isDoubleFire = d.lo >= 0.51 && d.hi <= 0.52;
+    const isClock = d.lo >= 0.495 && d.hi <= 0.505;
+    const color = isDeadZone ? 'var(--yellow)' : isDoubleFire ? 'var(--purple)' : isClock ? 'var(--accent)' : 'var(--text)';
+    const note = isDeadZone ? '💀 Dead zone' : isDoubleFire ? '⚡ Double-fire (3× vol!)' : isClock ? '⏱ Clock beat' : d.lo < 0.48 ? '🟢 Early' : '🟠 Late';
+    html += `<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:${color}">${d.lo.toFixed(3)}–${d.hi.toFixed(3)}s</td>
+      <td style="font-family:var(--mono);font-size:11px">${d.n.toLocaleString()}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${d.zero_pct>90?'var(--yellow)':'var(--m2)'}">${d.zero_pct.toFixed(1)}%</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${isDoubleFire?'var(--purple)':'var(--m2)'};font-weight:${isDoubleFire?'700':'400'}">${d.mean.toFixed(6)}</td>
+      <td style="font-size:11px;color:var(--m2)">${note}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('voltable').innerHTML = html;
+}
+
+// ── STATE SPEED TABLE ──
+function buildStateSpeedTable() {
+  const tb = document.getElementById('state-speed-tbody');
+  function edgeEl(e) {
+    const col = e > 0.3 ? 'var(--green)' : e < -0.3 ? 'var(--red)' : e > 0.05 ? '#8bce9f' : e < -0.05 ? '#ce8b90' : 'var(--m2)';
+    const pct = (e>=0?'+':'') + (e*100).toFixed(1) + '%';
+    return `<span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${pct}</span>`;
+  }
+  STATE_SPEED.forEach(s => {
+    const spread = Math.max(Math.abs(s.ce), Math.abs(s.ee), Math.abs(s.le)) - Math.min(Math.abs(s.ce), Math.abs(s.ee), Math.abs(s.le));
+    const matters = spread > 0.1;
+    const earlyAmp = Math.abs(s.ee) - Math.abs(s.ce);
+    tb.innerHTML += `<tr>
+      <td><span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${COLORS[s.id]}">${s.id}</span></td>
+      <td style="font-size:11px;">${s.name}</td>
+      <td>${edgeEl(s.ce)}</td>
+      <td>${edgeEl(s.ee)} ${earlyAmp > 0.3 ? '<span style="font-size:9px;color:var(--green)">▲+'+((earlyAmp)*100).toFixed(0)+'%</span>' : earlyAmp < -0.3 ? '<span style="font-size:9px;color:var(--red)">▼'+((earlyAmp)*100).toFixed(0)+'%</span>' : ''}</td>
+      <td>${edgeEl(s.le)}</td>
+      <td>${matters ? '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(245,196,48,0.12);color:var(--yellow);border:1px solid rgba(245,196,48,0.3);font-family:var(--mono)">YES</span>' : '<span style="font-size:10px;color:var(--muted)">no</span>'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--m2)">${(spread*100).toFixed(1)}%</td>
+    </tr>`;
+  });
+}
+
+// INIT
+drawHist();
+drawMove();
+buildVolTable();
+drawACF();
+drawSessions();
+buildSessTable();
+buildStateSpeedTable();
+window.addEventListener('resize', () => { drawHist(); drawMove(); drawACF(); drawSessions(); });
+</script>
+</body>
+</html>
