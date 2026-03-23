@@ -224,13 +224,12 @@ python main.py --csv your_data.csv
 
 ---
 
-## 📸 Screenshots
-
-Add screenshots here:
-
-```
+## 📸 Screenshots ### 
+🖥 Main Dashboard 
 ![Main UI](Capture3.PNG)
-```
+
+
+---
 
 ---
 
