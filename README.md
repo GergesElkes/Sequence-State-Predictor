@@ -1,164 +1,240 @@
-🧠 Sequence State Predictor (Tkinter GUI)
+# 🧠 Sequence State Predictor (Tkinter GUI)
 
-An interactive desktop prediction tool for forecasting the next state in a financial sequence model using a cleaned transition dataset (out.csv).
+An interactive desktop application for predicting the next state in a financial sequence model using a cleaned transition dataset (`out.csv`).
 
-Built with Tkinter, this application provides a visual and analytical interface over a probabilistic state transition model, including multi-step future path forecasting.
+Built with Tkinter, this tool provides a visual interface for exploring probabilistic state transitions and multi-step future paths.
 
-🚀 Overview
+---
 
-This project wraps a trained state transition model into a user-friendly GUI, allowing you to:
+## 🚀 Overview
 
-Predict the next most likely state
-Analyze transition probabilities
-Explore multi-step future paths (3–4 steps ahead)
-Incorporate timing regimes (EARLY / CLOCK / LATE) into predictions
+This application allows you to:
 
-It is designed as a research & analysis tool, not for live trading execution.
+* Predict the most likely next market state
+* Analyze transition probabilities
+* Explore future state sequences (3–4 steps ahead)
+* Use timing regimes (EARLY / CLOCK / LATE) to improve predictions
 
-🧠 Core Concept
+It is designed for **analysis and research**, not live trading.
 
-The system operates on:
+---
 
-A finite set of market states
-A transition probability model built from historical sequences
-Optional regime memory (3-token timing context)
+## 🧠 Core Concept
 
-Prediction is based on:
+The model is based on:
 
+* Discrete market states
+* Historical transition probabilities
+* Optional regime memory (3-token timing context)
+
+Prediction logic:
+
+```
 (current_state + optional_regime) → next_state probabilities
-✨ Features
-🎯 Next-State Prediction
-Displays top probable next states
-Shows:
-Probability
-Transition count
-Ranked outputs
-🔮 Future Path Forecasting
-Predicts sequences of:
-Next 3 states
-Next 4 states
-Based purely on empirical transitions
-⏱ Regime-Aware Modeling
+```
 
-Optional regime context using:
+---
 
-EARLY
-CLOCK
-LATE
+## ✨ Features
 
-Allows:
+### 🎯 Next-State Prediction
 
-Context-sensitive predictions
-Detection of compression / expansion behavior
-📊 Visual Probability Breakdown
-Color-coded predictions:
-🟢 BULL states
-🔴 BEAR states
-🔵 Neutral states
-Horizontal probability bars
-Sorted ranking table
-🎛 Interactive Controls
-Select current state
-Toggle regime usage
-Adjust:
-Top N predictions
-Minimum probability threshold
-Use last observed row instantly
-Reload dataset without restarting
-⚡ Smart Model Handling
-Automatically:
-Loads CSV
-Cleans stitched sequence breaks
-Builds transition probabilities
-Runs in background thread (non-blocking UI)
-🏗️ Project Structure
+* Displays top probable next states
+* Includes:
+
+  * Probability
+  * Transition count
+  * Ranking
+
+---
+
+### 🔮 Future Path Forecasting
+
+* Predicts:
+
+  * Next 3 states
+  * Next 4 states
+* Based on historical transition sequences
+
+---
+
+### ⏱ Regime-Aware Predictions
+
+Optional regime input using:
+
+* EARLY
+* CLOCK
+* LATE
+
+Enables context-aware predictions and timing analysis.
+
+---
+
+### 📊 Visual Analytics
+
+* Color-coded states:
+
+  * Bullish (green)
+  * Bearish (red)
+  * Neutral (blue)
+* Probability bars
+* Ranked table view
+
+---
+
+### 🎛 Interactive Controls
+
+* Select current state
+* Toggle regime usage
+* Adjust:
+
+  * Top N predictions
+  * Minimum probability threshold
+* Use last dataset row instantly
+* Reload CSV without restarting
+
+---
+
+### ⚡ Background Model Loading
+
+* Loads and processes data in a separate thread
+* Keeps UI responsive
+* Automatically rebuilds transition model
+
+---
+
+## 🏗️ Project Structure
+
+```
 project/
-├── main.py                  # GUI application (this file)
-├── predict_next_state.py    # Core model + prediction logic
-├── out.csv                  # Training dataset
+├── main.py                  # GUI application
+├── predict_next_state.py    # Core model logic
+├── out.csv                  # Dataset
 ├── requirements.txt
 ├── README.md
-📂 Data Requirements
+```
 
-The model expects a CSV (out.csv) with:
+---
 
-state_id
-state_name
-regime (3-token sequence, e.g. EARLY CLOCK LATE)
+## 📂 Data Requirements
 
-The dataset should already be cleaned or structured for sequence modeling.
+Expected CSV fields:
 
-⚙️ Installation
-1. Clone the repository
+* state_id
+* state_name
+* regime (e.g. EARLY CLOCK LATE)
+
+The dataset should be preprocessed for sequence modeling.
+
+---
+
+## ⚙️ Installation
+
+### 1. Clone repository
+
+```bash
 git clone https://github.com/yourusername/sequence-state-predictor.git
 cd sequence-state-predictor
-2. Install dependencies
+```
+
+### 2. Install dependencies
+
+```bash
 pip install -r requirements.txt
-▶️ Usage
-Run GUI
+```
+
+---
+
+## ▶️ Usage
+
+### Run GUI
+
+```bash
 python main.py
-Run quick CLI check (no GUI)
+```
+
+---
+
+### Run CLI check (no GUI)
+
+```bash
 python main.py --check
+```
 
-This will:
+---
 
-Load the model
-Print one prediction
-Show a sample future path
-Use custom CSV
+### Use custom dataset
+
+```bash
 python main.py --csv your_data.csv
-🧪 How It Works
-1. Model Building
-Reads CSV
-Removes invalid transitions ("stitched breaks")
-Constructs:
-Transition counts
-Probability distributions
-2. Prediction Engine
+```
 
-Uses:
+---
 
-State-only mode or
-State + regime mode
+## 🧪 How It Works
 
-Fallback logic applies when exact context is missing.
+### 1. Model Building
 
-3. Future Path Expansion
+* Reads CSV data
+* Removes invalid transitions
+* Builds transition counts and probabilities
 
-Simulates forward transitions:
+---
 
-Breadth-based probability expansion
-Returns most likely paths with:
-Combined probability
-Occurrence count
-📊 Example Insights
-Detect high-probability continuation states
-Identify compression states (e.g. 0, 4, 8)
-Observe regime-driven behavior changes
-Explore multi-step structural patterns
-⚠️ Limitations
-No machine learning (pure statistical model)
-No real-time data feed
-Depends heavily on dataset quality
-Not intended for automated trading
-🚧 Future Improvements
-Integrate ML-based prediction layer
-Add live data streaming
-Export predictions to CSV
-Add confidence intervals
-Improve performance for large datasets
-📸 Screenshots
+### 2. Prediction Engine
 
-Add screenshots of:
+* Uses:
 
-Main prediction dashboard
-Probability table
-Future path panels
+  * State only OR
+  * State + regime
+* Falls back when exact match is unavailable
 
-Example:
+---
 
+### 3. Future Path Simulation
+
+* Expands forward sequences
+* Returns most likely paths with probabilities
+
+---
+
+## 📊 Example Insights
+
+* Identify dominant next states
+* Detect compression states (e.g. 0, 4, 8)
+* Analyze regime influence
+* Explore multi-step behavior patterns
+
+---
+
+## ⚠️ Limitations
+
+* No machine learning (statistical model only)
+* No real-time data
+* Not for automated trading
+
+---
+
+## 🚧 Future Improvements
+
+* Add ML-based prediction
+* Integrate real-time data
+* Export results to CSV
+* Improve performance on large datasets
+
+---
+
+## 📸 Screenshots
+
+Add screenshots here:
+
+```
 ![Main UI](screenshot.png)
-👤 Author
+```
+
+---
+
+## 👤 Author
 
 Gerges Elkes
-GitHub: https://github.com/GergesElkes
+[https://github.com/GergesElkes](https://github.com/GergesElkes)
